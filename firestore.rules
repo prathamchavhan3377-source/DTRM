@@ -1,0 +1,98 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Fields:
+    //   - uid: string (required)
+    //   - email: string (required)
+    //   - displayName: string
+    //   - role: string (donor|ngo) (required)
+    //   - organizationName: string (required)
+    //   - phoneNumber: string
+    //   - address: string
+    //   - createdAt: timestamp
+    //
+    // Collection: donations
+    // Fields:
+    //   - donorId: string (required)
+    //   - donorName: string
+    //   - foodTitle: string (required)
+    //   - quantity: string (required)
+    //   - description: string
+    //   - pickupLocation: string (required)
+    //   - expiryTime: timestamp
+    //   - status: string (available|claimed|picked_up|cancelled) (required)
+    //   - ngoId: string
+    //   - ngoName: string
+    //   - createdAt: timestamp
+    //   - claimedAt: timestamp
+    //
+    // ===============================================================
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.donorId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+         (request.auth.token.email == "prathamchavhan28@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    // User Validation
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'role', 'organizationName']) &&
+             data.uid is string &&
+             data.email is string &&
+             data.role in ['donor', 'ngo'] &&
+             data.organizationName is string && data.organizationName.size() < 100;
+    }
+
+    // Donation Validation
+    function isValidDonation(data) {
+      return data.keys().hasAll(['donorId', 'foodTitle', 'quantity', 'pickupLocation', 'status']) &&
+             data.donorId is string &&
+             data.foodTitle is string && data.foodTitle.size() < 100 &&
+             data.quantity is string && data.quantity.size() < 50 &&
+             data.pickupLocation is string && data.pickupLocation.size() < 200 &&
+             data.status in ['available', 'claimed', 'picked_up', 'cancelled'];
+    }
+
+    // Rules
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if isOwner(userId) && isValidUser(request.resource.data) && 
+                      request.resource.data.role == resource.data.role;
+    }
+
+    match /donations/{donationId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.donorId == request.auth.uid && isValidDonation(request.resource.data);
+      allow update: if isAuthenticated() && (
+        // Donor can update their own donation
+        (request.auth.uid == resource.data.donorId && isValidDonation(request.resource.data)) ||
+        // NGO can claim a donation
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ngo' &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'ngoId', 'ngoName', 'claimedAt']) &&
+         request.resource.data.status in ['claimed', 'picked_up'] &&
+         request.resource.data.ngoId == request.auth.uid)
+      );
+      allow delete: if isAuthenticated() && request.auth.uid == resource.data.donorId;
+    }
+  }
+}

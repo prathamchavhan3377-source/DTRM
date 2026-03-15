@@ -1,0 +1,51 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Stores user profile information for donors and NGOs.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "role": { "type": "string", "enum": ["donor", "ngo"] },
+        "organizationName": { "type": "string", "description": "Name of the restaurant or NGO" },
+        "phoneNumber": { "type": "string" },
+        "address": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role", "organizationName"]
+    },
+    "Donation": {
+      "title": "Food Donation",
+      "description": "Details of food available for donation.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "donorId": { "type": "string" },
+        "donorName": { "type": "string" },
+        "foodTitle": { "type": "string" },
+        "quantity": { "type": "string", "description": "e.g., 5kg, 20 plates" },
+        "description": { "type": "string" },
+        "pickupLocation": { "type": "string" },
+        "expiryTime": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["available", "claimed", "picked_up", "cancelled"] },
+        "ngoId": { "type": "string", "description": "ID of the NGO that claimed it" },
+        "ngoName": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "claimedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["donorId", "foodTitle", "quantity", "pickupLocation", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile documents"
+    },
+    "/donations/{donationId}": {
+      "schema": "Donation",
+      "description": "Food donation records"
+    }
+  }
+}

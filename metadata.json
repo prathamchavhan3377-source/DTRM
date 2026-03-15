@@ -1,0 +1,5 @@
+{
+  "name": "FoodShare",
+  "description": "A food donation and redistribution platform connecting donors with NGOs to reduce food waste.",
+  "requestFramePermissions": ["geolocation"]
+}
